@@ -10,9 +10,6 @@ import android.os.Parcelable;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-/**
- * Created by Jim.
- */
 
 public final class ModuleInfo implements Parcelable {
     private final String mModuleId;

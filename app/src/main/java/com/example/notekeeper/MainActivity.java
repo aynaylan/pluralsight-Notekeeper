@@ -1,208 +1,187 @@
 package com.example.notekeeper;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.snackbar.Snackbar;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import android.preference.PreferenceManager;
+import android.view.View;
+import androidx.core.view.GravityCompat;
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import android.view.MenuItem;
+import com.google.android.material.navigation.NavigationView;
+import androidx.drawerlayout.widget.DrawerLayout;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
-import android.view.MenuItem;
-import android.widget.ArrayAdapter;
-import android.widget.EditText;
-import android.widget.Spinner;
+import android.widget.TextView;
 
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
-
-    public static final String ORIGINAL_NOTE_COURSE_ID = "ORIGINAL_NOTE_COURSE_ID";
-    public static final String ORIGINAL_NOTE_TITLE = "com.example.notekeeper.ORIGINAL_NOTE_TITLE";
-    public static final String ORIGINAL_NOTE_TEXT = "com.example.notekeeper.ORIGINAL_NOTE_TEXT";
+public class MainActivity extends AppCompatActivity
+        implements NavigationView.OnNavigationItemSelectedListener {
 
 
-    private final String TAG = getClass().getSimpleName();//Allows the TAG vakue to remain the same as the class regardless of change inthe class
-
-
-    public static final String NOTE_POSITION = "com.example.notekeeper.NOTE_POSITION";
-    public static final int POSITION_NOT_SET = -1;
-    private NoteInfo noteInfo;
-    private boolean isNewNote;
-    private Spinner spinnerCourses;
-    private EditText textNoteTitle;
-    private EditText textNoteText;
-    private int notePosition;
-    private boolean isCancelling;
-    private String originalNoteCourseId;
-    private String originalNoteTitle;
-    private String originalNoteText;
+    private NoteRecyclerAdapter noteRecyclerAdapter;
+    private LinearLayoutManager notesLayoutManager;
+    private RecyclerView recyclerItems;
+    private CourseRecyclerAdapter courseRecyclerAdapter;
+    private GridLayoutManager coursesLayoutManager;
+    private NoteKeeperOpenHelper openHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_navigation);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        spinnerCourses = findViewById(R.id.spinner_courses);
+        openHelper = new NoteKeeperOpenHelper(this);
 
+        FloatingActionButton fab = findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(MainActivity.this, NoteActivity.class));
 
-
-        //Adapters are the link between a set of data and the adpaterView that displays the data they also provide a childview
-        List<CourseInfo> courses = DataManager.getInstance().getCourses();
-
-
-        ArrayAdapter<CourseInfo> adapterCourses = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,courses);
-        adapterCourses.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-
-        spinnerCourses.setAdapter(adapterCourses);
-
-        readDisplayStateValues();
-        
-        
-        if(savedInstanceState == null){
-
-            saveOriginalNoteValues();
-
-        }else{
-            restoreOriginalNoteValues(savedInstanceState);
-        }
-
-        textNoteTitle = findViewById(R.id.text_note_title);
-        textNoteText = findViewById(R.id.text_note_text);
-
-        if(!isNewNote){
-
-            displayNote(spinnerCourses, textNoteTitle, textNoteText);
-        }
-        
-
-
-        Log.d(TAG,"onCreate");
-    }
-
-    private void restoreOriginalNoteValues(Bundle savedInstanceState) {
-
-        originalNoteCourseId = savedInstanceState.getString(ORIGINAL_NOTE_COURSE_ID);
-        originalNoteTitle = savedInstanceState.getString(ORIGINAL_NOTE_TITLE);
-        originalNoteText = savedInstanceState.getString(originalNoteText);
-
-
-    }
-
-    private void saveOriginalNoteValues() {
-        if(isNewNote)
-            return;
-
-        originalNoteCourseId = noteInfo.getCourse().getCourseId();
-        originalNoteTitle = noteInfo.getTitle();
-        originalNoteText = noteInfo.getText();
-
-
-
-    }
-
-    private void displayNote(Spinner spinnerCourses, EditText textNoteTitle, EditText textNoteText) {
-        List<CourseInfo> course = DataManager.getInstance().getCourses();//Retrieves the list of courses
-
-        int courseIndex = course.indexOf(noteInfo.getCourse());//get the position of the course contained in the note
-
-        spinnerCourses.setSelection(courseIndex);
-        textNoteTitle.setText(noteInfo.getTitle());
-        textNoteText.setText(noteInfo.getText());
-        //noteInfo.
-    }
-
-
-    @Override
-    protected void onPause() {
-        super.onPause();//base class implementation
-
-        if(isCancelling){
-
-            Log.i(TAG,"Cancelling note at position:  "+ notePosition);
-
-            if(isNewNote){
-
-                DataManager.getInstance().removeNote(notePosition);//Remove the note eevery time er are cancelling
-
-            }else{
-                storePreviousNoteValues();
             }
+        });
 
 
-        }else {
+        DrawerLayout drawer = findViewById(R.id.drawer_layout);
+        NavigationView navigationView = findViewById(R.id.nav_view);
+         navigationView.setNavigationItemSelectedListener(this);
 
 
-            saveNote();
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.addDrawerListener(toggle);
+        toggle.syncState();//if the navigation drawer is open the Actionbar needs to know that
 
-        }
 
-        Log.d(TAG,"onPause");
+
+
+        initializeDisplayContent();
+    }
+
+
+    @Override
+    protected void onDestroy() {
+        //close the database when the activity is being destroyed
+        openHelper.close();
+        super.onDestroy();
+
+
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
+    protected void onResume() {
+        super.onResume();
 
-        outState.putString(ORIGINAL_NOTE_COURSE_ID,originalNoteCourseId);
-        outState.putString(originalNoteTitle,originalNoteTitle);
-        outState.putString(originalNoteText,originalNoteText);
+        // adapterNotes.notifyDataSetChanged();
+
+        //Refresh our dataset
+        noteRecyclerAdapter.notifyDataSetChanged();
         
         
-        
+        updateNavHeader();
     }
 
-    private void storePreviousNoteValues() {
+    private void updateNavHeader() {
 
-        CourseInfo course = DataManager.getInstance().getCourse(originalNoteCourseId);
-        noteInfo.setCourse(course);
-        noteInfo.setTitle(originalNoteTitle);
-        noteInfo.setText(originalNoteText);
+        NavigationView navigationView = findViewById(R.id.nav_view);
+        View headerView = navigationView.getHeaderView(0);
+        TextView textUserName = headerView.findViewById(R.id.text_user_name);
+        TextView textEmailAddress = headerView.findViewById(R.id.text_user_email);
+
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+        String userName =  pref.getString("user_display_name","");
+        String userEmail = pref.getString("user_email_address","");
+
+        textUserName.setText(userName);
+        textEmailAddress.setText(userEmail);
 
     }
 
-    private void saveNote() {
+    private void initializeDisplayContent() {
 
-        noteInfo.setCourse((CourseInfo) spinnerCourses.getSelectedItem());///get the result of the selected course to our method
-        noteInfo.setTitle(textNoteTitle.getText().toString());
-        noteInfo.setText(textNoteText.getText().toString());
+        DataManager.loadFromDatabase(openHelper);
+
+
+
+        recyclerItems = findViewById(R.id.list_items);
+        notesLayoutManager = new LinearLayoutManager(this);
+
+        coursesLayoutManager = new GridLayoutManager(this,
+                getResources().getInteger(R.integer.course_grid_span));
+
+
+        recyclerItems.setLayoutManager(notesLayoutManager);
+
+        List<NoteInfo> notes = DataManager.getInstance().getNotes();
+
+        noteRecyclerAdapter = new NoteRecyclerAdapter(this,notes);
+
+        List<CourseInfo> courses = DataManager.getInstance().getCourses();
+        courseRecyclerAdapter = new CourseRecyclerAdapter(this,courses);
+
+
+
+        displayNotes();
 
     }
 
-    //Gets the note from the extra
-    private void readDisplayStateValues(){
-        Intent intent = getIntent();
-        int notePosition = intent.getIntExtra(NOTE_POSITION, POSITION_NOT_SET);
-        //Value types dont have a concept of null....reference types have a concept of null
+    private void displayNotes() {
 
-        isNewNote = notePosition == POSITION_NOT_SET;
+        recyclerItems.setLayoutManager(notesLayoutManager);
+        recyclerItems.setAdapter(noteRecyclerAdapter);
 
-        if(isNewNote){
-            createNewNote();
-        }else{
 
-            Log.d(TAG,"Note Position: "+ notePosition);
-            noteInfo = DataManager.getInstance().getNotes().get(notePosition);
+        selectNavigationMenuItem(R.id.nav_notes);
 
+
+    }
+
+    private void selectNavigationMenuItem(int id) {
+        //Display notes by default
+        NavigationView navigationView = findViewById(R.id.nav_view);
+        Menu menu = navigationView.getMenu();//feteh the menu from the navigation View
+        menu.findItem(id).setChecked(true);
+    }
+
+
+    private void displayCourses(){
+        recyclerItems.setLayoutManager(coursesLayoutManager);
+        recyclerItems.setAdapter(courseRecyclerAdapter);
+
+        selectNavigationMenuItem(R.id.nav_courses);
+    }
+
+
+    //called when the user presses back
+    @Override
+    public void onBackPressed() {
+        DrawerLayout drawer = findViewById(R.id.drawer_layout);
+
+        //if the drawer is currently open close the drawer
+        if (drawer.isDrawerOpen(GravityCompat.START)) {
+            drawer.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
         }
-
-
-
-    }
-
-    private void createNewNote() {
-
-        DataManager dm = DataManager.getInstance();
-        notePosition = dm.createNewNote();//Returns the position of the newly created note
-        noteInfo = dm.getNotes().get(notePosition);
-
-
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
+        getMenuInflater().inflate(R.menu.navigation, menu);
         return true;
     }
 
@@ -214,62 +193,53 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_send_mail) {
+        if (id == R.id.action_settings) {
 
-            sendEmail();
+            startActivity(new Intent(this, SettingsActivity.class));
             return true;
-        }else if(id == R.id.action_cancel){
-
-            isCancelling = true;
-
-            //exit if the User doesn't want to save note exit the program
-            finish();
-
-        }else if(id == R.id.action_next){
-
-            moveNext();
         }
 
         return super.onOptionsItemSelected(item);
     }
 
-
+    @SuppressWarnings("StatementWithEmptyBody")
     @Override
-    public boolean onPrepareOptionsMenu(Menu menu) {
+    public boolean onNavigationItemSelected(MenuItem item) {
+        // Handle navigation view item clicks here.
+        int id = item.getItemId();
 
-        MenuItem item = menu.findItem(R.id.action_next);
-        int lastNoteIndex = DataManager.getInstance().getNotes().size() -1;
-        item.setEnabled(notePosition < lastNoteIndex);
+        if (id == R.id.nav_notes) {
 
+            displayNotes();
 
-        return super.onPrepareOptionsMenu(menu);
+        } else if (id == R.id.nav_courses) {
+            displayCourses();
+
+        } else if (id == R.id.nav_share) {
+
+            handleSelection(R.string.nav_share_message);
+            handleShare();
+        } else if (id == R.id.nav_send) {
+
+            handleSelection(R.string.nav_send_message);
+
+        }
+
+        DrawerLayout drawer = findViewById(R.id.drawer_layout);
+        drawer.closeDrawer(GravityCompat.START);
+        return true;
     }
 
-    private void moveNext() {
+    private void handleShare() {
 
-        saveNote();//SAve any changes they made before proceeding to the next note
-
-        ++notePosition;
-        noteInfo = DataManager.getInstance().getNotes().get(notePosition);
-        saveOriginalNoteValues();
-        displayNote(spinnerCourses,textNoteTitle,textNoteText);
-
-        invalidateOptionsMenu();
-
+        View view = findViewById(R.id.list_items);
+        Snackbar.make(view,"Share to - "+ PreferenceManager.getDefaultSharedPreferences(this).getString("user_favourite_social",""),Snackbar.LENGTH_LONG).show();
     }
 
-    private void sendEmail() {
+    private void handleSelection(int message_id) {
 
-        CourseInfo course = (CourseInfo) spinnerCourses.getSelectedItem();
-        String subject = textNoteTitle.getText().toString();
-        String text = "Check out what I learnt in the pluralsight course \"" + course.getTitle()+ "\"\n" + textNoteText.getText().toString();
-
-        Intent intent = new Intent(Intent.ACTION_SEND);
-        intent.setType("message/rfc2822");//Standard MIME type for email
-        intent.putExtra(Intent.EXTRA_SUBJECT,subject);
-        intent.putExtra(Intent.EXTRA_TEXT,text);
-        startActivity(intent);
-
+        View view = findViewById(R.id.list_items);
+        Snackbar.make(view,message_id,Snackbar.LENGTH_LONG).show();
 
     }
 }

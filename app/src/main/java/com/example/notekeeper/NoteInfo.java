@@ -3,14 +3,19 @@ package com.example.notekeeper;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-/**
- * Created by Jim.
- */
 
-public final class NoteInfo implements Parcelable{
+public final class NoteInfo implements Parcelable {
     private CourseInfo mCourse;
     private String mTitle;
     private String mText;
+    private int mId;
+
+    public NoteInfo(int id, CourseInfo course, String title, String text) {
+        mId = id;
+        mCourse = course;
+        mTitle = title;
+        mText = text;
+    }
 
     public NoteInfo(CourseInfo course, String title, String text) {
         mCourse = course;
@@ -18,26 +23,15 @@ public final class NoteInfo implements Parcelable{
         mText = text;
     }
 
-    protected NoteInfo(Parcel in) {
-        mCourse = in.readParcelable(CourseInfo.class.getClassLoader());
-        mTitle = in.readString();
-        mText = in.readString();
+    private NoteInfo(Parcel source) {
+        mCourse = source.readParcelable(CourseInfo.class.getClassLoader());
+        mTitle = source.readString();
+        mText = source.readString();
     }
 
-    //how new instances of a type are create from a parcel
-    public static final Creator<NoteInfo> CREATOR = new Creator<NoteInfo>() {
-        @Override
-        public NoteInfo createFromParcel(Parcel in) {
-            return new NoteInfo(in);
-        }
-
-        @Override
-        public NoteInfo[] newArray(int size) {
-            return new NoteInfo[size];
-        }
-    };
-
-
+    public int getId() {
+        return mId;
+    }
 
     public CourseInfo getCourse() {
         return mCourse;
@@ -82,33 +76,34 @@ public final class NoteInfo implements Parcelable{
         return getCompareKey().hashCode();
     }
 
-
-
-    ///Concatunates the ID for the course
     @Override
     public String toString() {
         return getCompareKey();
     }
 
-
-    //Used when we have special parceable needs
     @Override
     public int describeContents() {
         return 0;
     }
 
-    //Responsible to write the member instances in each
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-
-        dest.writeParcelable(mCourse,0);
+        dest.writeParcelable(mCourse, 0);
         dest.writeString(mTitle);
         dest.writeString(mText);
-
     }
 
+    public final static Parcelable.Creator<NoteInfo> CREATOR =
+            new Parcelable.Creator<NoteInfo>() {
 
+                @Override
+                public NoteInfo createFromParcel(Parcel source) {
+                    return new NoteInfo(source);
+                }
 
-
-
+                @Override
+                public NoteInfo[] newArray(int size) {
+                    return new NoteInfo[size];
+                }
+            };
 }
