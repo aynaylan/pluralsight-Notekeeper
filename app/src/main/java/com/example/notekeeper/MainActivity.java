@@ -2,26 +2,27 @@ package com.example.notekeeper;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.snackbar.Snackbar;
+import android.preference.PreferenceManager;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.TextView;
+
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import android.preference.PreferenceManager;
-import android.view.View;
-import androidx.core.view.GravityCompat;
-import androidx.appcompat.app.ActionBarDrawerToggle;
-import android.view.MenuItem;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
-import androidx.drawerlayout.widget.DrawerLayout;
-
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
-import android.view.Menu;
-import android.widget.TextView;
+import com.google.android.material.snackbar.Snackbar;
 
 import java.util.List;
 
@@ -84,14 +85,21 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-
-        // adapterNotes.notifyDataSetChanged();
-
-        //Refresh our dataset
-        noteRecyclerAdapter.notifyDataSetChanged();
-        
-        
+        loadNotes();
         updateNavHeader();
+    }
+
+    private void loadNotes() {
+        SQLiteDatabase db = openHelper.getReadableDatabase();
+        final String[] noteColumns = new String[]{
+                NoteKeeperDatabaseContract.NoteInfoEntry.COLUMN_NOTE_TITLE,
+                NoteKeeperDatabaseContract.NoteInfoEntry.COLUMN_COURSE_ID,
+                NoteKeeperDatabaseContract.NoteInfoEntry._ID};
+
+        String noteOrderBy = NoteKeeperDatabaseContract.NoteInfoEntry.COLUMN_COURSE_ID + "," + NoteKeeperDatabaseContract.NoteInfoEntry.COLUMN_NOTE_TITLE;
+        final Cursor noteCursor = db.query(NoteKeeperDatabaseContract.NoteInfoEntry.TABLE_NAME, noteColumns,
+                null, null, null, null, noteOrderBy);
+        noteRecyclerAdapter.changeCursor(noteCursor);
     }
 
     private void updateNavHeader() {
@@ -114,8 +122,6 @@ public class MainActivity extends AppCompatActivity
 
         DataManager.loadFromDatabase(openHelper);
 
-
-
         recyclerItems = findViewById(R.id.list_items);
         notesLayoutManager = new LinearLayoutManager(this);
 
@@ -123,11 +129,7 @@ public class MainActivity extends AppCompatActivity
                 getResources().getInteger(R.integer.course_grid_span));
 
 
-        recyclerItems.setLayoutManager(notesLayoutManager);
-
-        List<NoteInfo> notes = DataManager.getInstance().getNotes();
-
-        noteRecyclerAdapter = new NoteRecyclerAdapter(this,notes);
+        noteRecyclerAdapter = new NoteRecyclerAdapter(this, null);
 
         List<CourseInfo> courses = DataManager.getInstance().getCourses();
         courseRecyclerAdapter = new CourseRecyclerAdapter(this,courses);
@@ -142,8 +144,6 @@ public class MainActivity extends AppCompatActivity
 
         recyclerItems.setLayoutManager(notesLayoutManager);
         recyclerItems.setAdapter(noteRecyclerAdapter);
-
-
         selectNavigationMenuItem(R.id.nav_notes);
 
 
@@ -152,7 +152,7 @@ public class MainActivity extends AppCompatActivity
     private void selectNavigationMenuItem(int id) {
         //Display notes by default
         NavigationView navigationView = findViewById(R.id.nav_view);
-        Menu menu = navigationView.getMenu();//feteh the menu from the navigation View
+        Menu menu = navigationView.getMenu();//fetch the menu from the navigation View
         menu.findItem(id).setChecked(true);
     }
 

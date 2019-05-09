@@ -53,8 +53,6 @@ public class DataManager {
 
         DataManager dm = getInstance();
         dm.mNotes.clear();
-
-        //as long as  the cursor can move to the next postion loop through the results
         while (cursor.moveToNext()) {
             String noteTitle = cursor.getString(noteTitlePos);
             String noteText = cursor.getString(noteTextPos);
@@ -63,8 +61,6 @@ public class DataManager {
 
             CourseInfo noteCourse = dm.getCourse(courseId);
             NoteInfo note = new NoteInfo(id, noteCourse, noteTitle, noteText);
-
-            //add to the list
             dm.mNotes.add(note);
         }
         cursor.close();
@@ -87,11 +83,11 @@ public class DataManager {
     }
 
     public String getCurrentUserName() {
-        return "Jim Wilson";
+        return "Ian Nslyanya";
     }
 
     public String getCurrentUserEmail() {
-        return "jimw@jwhh.com";
+        return "naiaynaylan@gmail.com";
     }
 
     public List<NoteInfo> getNotes() {
