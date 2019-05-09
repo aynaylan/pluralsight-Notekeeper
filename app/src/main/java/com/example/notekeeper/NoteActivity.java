@@ -163,7 +163,7 @@ public class NoteActivity extends AppCompatActivity implements LoaderManager.Loa
                 storePreviousNoteValues();
             }
         } else {
-            saveNote();
+            //saveNote();
         }
         Log.d(TAG, "onPause");
     }
@@ -183,11 +183,11 @@ public class NoteActivity extends AppCompatActivity implements LoaderManager.Loa
         outState.putString(ORIGINAL_NOTE_TEXT, mOriginalNoteText);
     }
 
-    private void saveNote() {
-        mNote.setCourse((CourseInfo) mSpinnerCourses.getSelectedItem());
-        mNote.setTitle(mTextNoteTitle.getText().toString());
-        mNote.setText(mTextNoteText.getText().toString());
-    }
+//    private void saveNote() {
+////        mNote.setCourse((CourseInfo) mSpinnerCourses.getSelectedItem());
+////        mNote.setTitle(mTextNoteTitle.getText().toString());
+////        mNote.setText(mTextNoteText.getText().toString());
+////    }
 
     private void displayNote() {
         String courseId = mNoteCursor.getString(mCourseIdPos);
@@ -275,7 +275,7 @@ public class NoteActivity extends AppCompatActivity implements LoaderManager.Loa
     }
 
     private void moveNext() {
-        saveNote();
+        //saveNote();
 
         ++mNoteId;
         mNote = DataManager.getInstance().getNotes().get(mNoteId);
@@ -297,19 +297,12 @@ public class NoteActivity extends AppCompatActivity implements LoaderManager.Loa
         startActivity(intent);
     }
 
-
     @Override
     public Loader<Cursor> onCreateLoader(int id, Bundle args) {
-
-
-        ///access the database in a lifecycle aware style
-
-
         CursorLoader loader = null;
         if (id == LOADER_NOTES)
             loader = createLoaderNotes();
         else if (id == LOADER_COURSES)
-
             loader = createLoaderCourses();
         return loader;
     }
